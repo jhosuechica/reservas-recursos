@@ -1,0 +1,28 @@
+# Perfil de las pruebas. Lo activan Surefire y Failsafe desde el pom.
+#
+# A diferencia de lo que suele hacerse, aqui NO se deja que Hibernate genere el
+# esquema. En este proyecto las reglas de negocio viven en el esquema: la
+# restriccion de exclusion que impide el solapamiento, los CHECK del intervalo
+# y de la duracion. Hibernate no genera nada de eso, asi que unas pruebas
+# contra un esquema generado por el ORM pasarian sin comprobar lo unico que de
+# verdad importa.
+#
+# Las pruebas corren contra el mismo esquema que produce Flyway en produccion.
+spring:
+  flyway:
+    enabled: true
+    # Solo hasta la V1: el esquema, sin los datos de ejemplo de la V2. Cada
+    # prueba crea los recursos que necesita y no depende de una semilla.
+    target: "1"
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+
+logging:
+  level:
+    root: WARN
+    io.github.jhosuechica.reservas: DEBUG
+    org.testcontainers: INFO

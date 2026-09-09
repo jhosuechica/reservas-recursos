@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: reservas
+
+  # Las credenciales llegan por variable de entorno desde docker-compose.
+  # Los valores por defecto solo sirven para arrancar fuera de Docker.
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/reservas}
+    username: ${SPRING_DATASOURCE_USERNAME:reservas_app}
+    password: ${SPRING_DATASOURCE_PASSWORD:reservas}
+
+  jpa:
+    hibernate:
+      # validate: Flyway crea el esquema, Hibernate solo comprueba que el
+      # mapeo coincide. Si no coinciden, la aplicacion no arranca, que es
+      # justo lo que se quiere.
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
+    # Sin la sesion abierta en la vista: una asociacion LAZY no cargada falla
+    # al serializar en vez de disparar consultas silenciosas fuera de la
+    # transaccion. Por eso el repositorio trae el recurso con join fetch.
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health,info}
+  endpoint:
+    health:
+      # Los detalles nombran la base y su version: no salen al exterior.
+      show-details: never
+
+logging:
+  level:
+    root: INFO
+    io.github.jhosuechica.reservas: INFO

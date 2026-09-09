@@ -1,0 +1,78 @@
+# Reserva de salas y equipos: PostgreSQL, el servicio Spring Boot y la
+# aplicacion Angular servida por Nginx.
+# Levanta todo con: docker compose up -d
+name: ${PROYECTO:-miapp}
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ${PROYECTO:-miapp}-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Cualquier .sql aqui se ejecuta SOLO la primera vez que se crea el volumen
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    # El puerto NO se publica al host por defecto: la BD solo es visible
+    # dentro de la red interna. Descomenta si necesitas conectarte con DBeaver.
+    # ports:
+    #   - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks: [red]
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        JAVA_VERSION: ${JAVA_VERSION:-21}
+    image: ${DOCKERHUB_USERNAME:-local}/${PROYECTO:-miapp}-backend:${TAG:-latest}
+    container_name: ${PROYECTO:-miapp}-backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${DDL_AUTO:-validate}
+      # Exponemos solo los endpoints de actuator que necesitamos
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [red]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NODE_VERSION: ${NODE_VERSION:-24}
+    image: ${DOCKERHUB_USERNAME:-local}/${PROYECTO:-miapp}-frontend:${TAG:-latest}
+    container_name: ${PROYECTO:-miapp}-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-4200}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [red]
+
+volumes:
+  pgdata:
+    name: ${PROYECTO:-miapp}-pgdata
+
+networks:
+  red:
+    name: ${PROYECTO:-miapp}-net
+    driver: bridge

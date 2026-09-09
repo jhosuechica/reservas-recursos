@@ -1,0 +1,169 @@
+<header class="cabecera">
+  <h1>Reserva de salas y equipos</h1>
+  <p>
+    Dos reservas confirmadas del mismo recurso no pueden solaparse. Esa regla no
+    la comprueba la aplicación: la impone una restricción de exclusión de
+    PostgreSQL, y lo que ves abajo cuando falla es su rechazo traducido.
+  </p>
+</header>
+
+<section class="filtros">
+  <label>
+    Día
+    <input
+      type="date"
+      name="fecha"
+      [ngModel]="fecha()"
+      (ngModelChange)="fecha.set($event); cargarAgenda()"
+    />
+  </label>
+
+  <label>
+    Recurso
+    <select
+      name="filtro"
+      [ngModel]="filtroRecurso()"
+      (ngModelChange)="filtroRecurso.set($event); cargarAgenda()"
+    >
+      <option [ngValue]="null">Todos los recursos</option>
+      @for (recurso of recursos(); track recurso.id) {
+        <option [ngValue]="recurso.id">{{ recurso.codigo }} · {{ recurso.nombre }}</option>
+      }
+    </select>
+  </label>
+</section>
+
+@if (error(); as problema) {
+  <div class="mensaje error" role="alert">
+    <strong>{{ problema.title }}</strong>
+    <p>{{ problema.detail }}</p>
+
+    @if (problema.restriccion) {
+      <p class="restriccion">
+        Rechazado por la restricción <code>{{ problema.restriccion }}</code> del esquema
+      </p>
+    }
+
+    @if (erroresDeCampo().length > 0) {
+      <ul>
+        @for (fallo of erroresDeCampo(); track fallo.campo) {
+          <li><code>{{ fallo.campo }}</code>: {{ fallo.mensaje }}</li>
+        }
+      </ul>
+    }
+  </div>
+}
+
+@if (aviso(); as texto) {
+  <div class="mensaje aviso" role="status">{{ texto }}</div>
+}
+
+<main>
+  <section class="panel">
+    <h2>Nueva reserva</h2>
+
+    <form (ngSubmit)="crear()" #formularioReserva="ngForm">
+      <label>
+        Recurso
+        <select name="recursoId" [(ngModel)]="formulario.recursoId" required>
+          @for (recurso of recursos(); track recurso.id) {
+            <option [ngValue]="recurso.id">{{ recurso.codigo }} · {{ recurso.nombre }}</option>
+          }
+        </select>
+      </label>
+
+      <label>
+        Solicitante
+        <input
+          type="text"
+          name="solicitante"
+          [(ngModel)]="formulario.solicitante"
+          maxlength="120"
+          required
+          placeholder="Nombre de quien reserva"
+        />
+      </label>
+
+      <label>
+        Motivo
+        <input
+          type="text"
+          name="motivo"
+          [(ngModel)]="formulario.motivo"
+          maxlength="200"
+          required
+          placeholder="Para qué se reserva"
+        />
+      </label>
+
+      <div class="horas">
+        <label>
+          Desde
+          <input type="time" name="horaInicio" [(ngModel)]="formulario.horaInicio" required />
+        </label>
+        <label>
+          Hasta
+          <input type="time" name="horaFin" [(ngModel)]="formulario.horaFin" required />
+        </label>
+      </div>
+
+      <button type="submit" [disabled]="formularioReserva.invalid">Reservar</button>
+    </form>
+
+    <p class="nota">
+      Prueba a reservar un intervalo que pise otro del mismo recurso: la base de
+      datos lo rechaza y la aplicación te dice qué restricción saltó.
+    </p>
+  </section>
+
+  <section class="panel">
+    <h2>
+      Agenda · {{ nombreDeRecurso(filtroRecurso()) }}
+      <small>{{ fecha() }}</small>
+    </h2>
+
+    @if (cargando()) {
+      <p class="vacio">Cargando…</p>
+    } @else if (confirmadas().length === 0) {
+      <p class="vacio">No hay reservas confirmadas este día.</p>
+    } @else {
+      <ul class="agenda">
+        @for (reserva of confirmadas(); track reserva.id) {
+          <li>
+            <div class="horario">
+              {{ reserva.inicio | date: 'HH:mm' }} · {{ reserva.fin | date: 'HH:mm' }}
+            </div>
+            <div class="detalle">
+              <strong>{{ reserva.motivo }}</strong>
+              <span>{{ reserva.solicitante }}</span>
+              <span class="recurso">{{ reserva.recursoCodigo }} · {{ reserva.recursoNombre }}</span>
+            </div>
+            <button type="button" class="cancelar" (click)="cancelar(reserva)">Cancelar</button>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (canceladas().length > 0) {
+      <h3>Canceladas</h3>
+      <p class="nota">
+        Siguen aquí a propósito: cancelar libera el intervalo sin borrar la fila,
+        porque la restricción solo mira las confirmadas.
+      </p>
+      <ul class="agenda cancelada">
+        @for (reserva of canceladas(); track reserva.id) {
+          <li>
+            <div class="horario">
+              {{ reserva.inicio | date: 'HH:mm' }} · {{ reserva.fin | date: 'HH:mm' }}
+            </div>
+            <div class="detalle">
+              <strong>{{ reserva.motivo }}</strong>
+              <span>{{ reserva.solicitante }}</span>
+              <span class="recurso">{{ reserva.recursoCodigo }} · {{ reserva.recursoNombre }}</span>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+</main>
