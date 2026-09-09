@@ -20,6 +20,12 @@ traducir el rechazo.
 Esa decisión, con lo que cuesta, está en
 [docs/adr/0001](docs/adr/0001-la-regla-vive-en-el-esquema.md).
 
+![La aplicación rechazando una reserva que se solapa, con el nombre de la restricción del esquema que la rechazó](docs/img/reservas_sin_solape.png)
+
+Lo que se ve arriba es el sistema rechazando una reserva de 09:30 a 10:15 sobre
+una sala que ya está ocupada de 09:00 a 10:30. El mensaje no dice «error»: dice
+qué restricción del esquema la rechazó.
+
 ---
 
 ## Tabla de contenido
